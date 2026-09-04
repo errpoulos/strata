@@ -163,6 +163,63 @@ impl PreviewProvider for LocalPreviewProvider {
                 content_type = queried_type;
             }
 
+            if content_type == "image/gif" {
+                let file = file_for_location(&entry.location);
+                let native_path = entry.location.native_path().map(ToOwned::to_owned);
+                let modified = match entry.modified_unix_seconds {
+                    crate::model::MetadataValue::Known(m) => Some(m),
+                    crate::model::MetadataValue::Unknown
+                    | crate::model::MetadataValue::Unavailable => None,
+                };
+                let cache_key = PreviewCacheKey {
+                    path: entry
+                        .location
+                        .native_path()
+                        .map(ToOwned::to_owned)
+                        .unwrap_or_default(),
+                    modified,
+                };
+                if let Some(cached) = PREVIEW_CACHE.with(|cache| cache.borrow_mut().get(&cache_key))
+                {
+                    emit(PreviewEvent::Ready(Preview {
+                        request_id,
+                        entry,
+                        content_type,
+                        content: cached,
+                    }));
+                    return;
+                }
+                match read_binary(
+                    &file,
+                    native_path.as_deref(),
+                    crate::sandbox::MAX_OUTPUT_BYTES as usize,
+                )
+                .await
+                {
+                    Ok(data) => {
+                        let content = PreviewContent::SandboxedMedia { data };
+                        PREVIEW_CACHE.with(|cache| {
+                            cache.borrow_mut().insert(cache_key, content.clone());
+                        });
+                        emit(PreviewEvent::Ready(Preview {
+                            request_id,
+                            entry,
+                            content_type,
+                            content,
+                        }));
+                        return;
+                    }
+                    Err(error) => {
+                        emit(PreviewEvent::Failed {
+                            request_id,
+                            entry,
+                            message: error.to_string(),
+                        });
+                        return;
+                    }
+                }
+            }
+
             let operation = match content {
                 PreviewContent::Pdf { .. } => Some(ParseOperation::PreviewPdf),
                 PreviewContent::Image => Some(ParseOperation::PreviewImage),
@@ -345,6 +402,54 @@ async fn read_text(
     let truncated = bytes.len() > byte_limit;
     let sample = &bytes[..bytes.len().min(byte_limit)];
     Ok((String::from_utf8_lossy(sample).into_owned(), truncated))
+}
+
+async fn read_binary(
+    file: &gio::File,
+    native_path: Option<&Path>,
+    byte_limit: usize,
+) -> Result<Vec<u8>, glib::Error> {
+    if let Some(path) = native_path {
+        let path = path.to_path_buf();
+        let result = gio::spawn_blocking(move || {
+            use std::io::Read;
+            let file = std::fs::File::open(&path)
+                .map_err(|e| glib::Error::new(gio::IOErrorEnum::Failed, &e.to_string()))?;
+            let mut bytes = Vec::new();
+            file.take(byte_limit as u64 + 1)
+                .read_to_end(&mut bytes)
+                .map_err(|e| glib::Error::new(gio::IOErrorEnum::Failed, &e.to_string()))?;
+            if bytes.len() > byte_limit {
+                return Err(glib::Error::new(
+                    gio::IOErrorEnum::Failed,
+                    "File exceeds maximum preview size",
+                ));
+            }
+            Ok(bytes)
+        })
+        .await;
+        match result {
+            Ok(ok) => return ok,
+            Err(_) => {
+                return Err(glib::Error::new(
+                    gio::IOErrorEnum::Cancelled,
+                    "Read cancelled",
+                ));
+            }
+        }
+    }
+    let stream = file.read_future(glib::Priority::DEFAULT).await?;
+    let bytes = stream
+        .read_bytes_future(byte_limit.saturating_add(1), glib::Priority::DEFAULT)
+        .await?;
+    let bytes = bytes.as_ref();
+    if bytes.len() > byte_limit {
+        return Err(glib::Error::new(
+            gio::IOErrorEnum::Failed,
+            "File exceeds maximum preview size",
+        ));
+    }
+    Ok(bytes.to_vec())
 }
 
 #[cfg(test)]

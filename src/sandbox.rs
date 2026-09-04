@@ -17,7 +17,7 @@ use std::{
 use rustix::process::{Pid, Signal, kill_process_group};
 
 const WALL_TIME_LIMIT: Duration = Duration::from_secs(12);
-const MEDIA_WALL_TIME_LIMIT: Duration = Duration::from_secs(15);
+const MEDIA_WALL_TIME_LIMIT: Duration = Duration::from_secs(30);
 const ADDRESS_SPACE_LIMIT_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const FILE_SIZE_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
 const TEMPORARY_STORAGE_LIMIT_BYTES: u64 = 512 * 1024 * 1024;

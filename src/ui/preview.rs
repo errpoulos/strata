@@ -607,7 +607,7 @@ impl PreviewState {
                 }
                 if !is_gif {
                     let notice = gtk::Label::new(Some(
-                        "Preview limited to the first 10 seconds. Open the file to play the full video.",
+                        "Preview limited to the first 30 seconds. Open the file to play the full video.",
                     ));
                     notice.add_css_class("preview-note");
                     notice.set_justify(gtk::Justification::Center);
