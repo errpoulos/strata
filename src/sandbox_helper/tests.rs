@@ -246,7 +246,7 @@ fn media_commands_select_the_backend_and_preserve_limits() {
 
     for command in [vaapi, vulkan, software] {
         assert!(command.contains("-max_alloc 536870912 -max_pixels 50000000"));
-        assert!(command.contains("-map 0:v:0 -map 0:a:0? -sn -dn -t 30"));
+        assert!(command.contains("-map 0:v:0 -map 0:a:0? -sn -dn -t 10"));
         assert!(command.contains("-fpsmax 30"));
         assert!(command.contains("-b:v 2M -maxrate 3M -bufsize 4M"));
         assert!(command.ends_with("pipe:1"));
@@ -278,13 +278,13 @@ fn preview_image_uses_raw_fallbacks() {
     let output = directory.path().join("result.png");
     std::fs::write(&input, b"not a camera file").expect("write stub");
 
-    let pixbuf = render_pixbuf(&input, 1400).expect_err("stub must fail pixbuf");
-    let raw = render_raw(&input, 1400);
+    let pixbuf = render_pixbuf(&input, 800).expect_err("stub must fail pixbuf");
+    let raw = render_raw(&input, 800);
     let preview = run(&[
         "preview-image".into(),
         input.to_string_lossy().into_owned(),
         output.to_string_lossy().into_owned(),
-        "1400".into(),
+        "800".into(),
         "software".into(),
     ]);
 

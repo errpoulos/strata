@@ -17,7 +17,7 @@ use crate::sandbox::{MAX_OUTPUT_BYTES, MediaPreviewBackend, gpu_devices, numbere
 
 const HARDWARE_ATTEMPT_TIME_LIMIT: Duration = Duration::from_secs(8);
 const HARDWARE_TOTAL_TIME_LIMIT: Duration = Duration::from_secs(12);
-const MEDIA_TOTAL_TIME_LIMIT: Duration = Duration::from_secs(28);
+const MEDIA_TOTAL_TIME_LIMIT: Duration = Duration::from_secs(14);
 const MAX_MEDIA_ALLOCATION_BYTES: u64 = 512 * 1024 * 1024;
 const MAX_MEDIA_DECODE_PIXELS: u64 = 50_000_000;
 const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(20);
@@ -46,7 +46,7 @@ pub(crate) fn run(arguments: &[String]) -> Result<(), String> {
         "thumbnail-raw" => (render_raw_thumbnail(input, value.clamp(16, 256))?, None),
         "thumbnail-pdf" => (render_pdf_thumbnail(input, value.clamp(16, 256))?, None),
         "thumbnail-video" => (render_media(input, value.clamp(16, 256))?, None),
-        "preview-image" => (render_raw(input, 1400)?, None),
+        "preview-image" => (render_raw(input, 800)?, None),
         "preview-pdf" => {
             let (png, page, pages) = render_pdf_page(input, value)?;
             (png, Some(format!("{page} {pages}")))
@@ -65,7 +65,7 @@ pub(crate) fn run(arguments: &[String]) -> Result<(), String> {
 fn render_pixbuf(path: &Path, size: i32) -> Result<Vec<u8>, String> {
     gdk_pixbuf::Pixbuf::from_file_at_scale(path, size, size, true)
         .map_err(|error| error.to_string())?
-        .save_to_bufferv("png", &[])
+        .save_to_bufferv("png", &[("compression", "1")])
         .map_err(|error| error.to_string())
 }
 
@@ -174,7 +174,7 @@ fn scale_embedded_thumbnail(data: &[u8], size: i32) -> Result<Vec<u8>, String> {
             gdk_pixbuf::InterpType::Bilinear,
         )
         .ok_or_else(|| "Unable to scale embedded RAW thumbnail".to_owned())?
-        .save_to_bufferv("png", &[])
+        .save_to_bufferv("png", &[("compression", "1")])
         .map_err(|error| error.to_string())
 }
 
@@ -360,7 +360,7 @@ fn media_command(backend: &MediaBackend, path: &Path) -> Command {
     command
         .arg("-i")
         .arg(path)
-        .args(["-map", "0:v:0", "-map", "0:a:0?", "-sn", "-dn", "-t", "30"]);
+        .args(["-map", "0:v:0", "-map", "0:a:0?", "-sn", "-dn", "-t", "10"]);
     match backend {
         MediaBackend::VaApi(_) => {
             command.args([

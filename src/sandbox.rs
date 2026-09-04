@@ -17,7 +17,7 @@ use std::{
 use rustix::process::{Pid, Signal, kill_process_group};
 
 const WALL_TIME_LIMIT: Duration = Duration::from_secs(12);
-const MEDIA_WALL_TIME_LIMIT: Duration = Duration::from_secs(30);
+const MEDIA_WALL_TIME_LIMIT: Duration = Duration::from_secs(15);
 const ADDRESS_SPACE_LIMIT_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const FILE_SIZE_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
 const TEMPORARY_STORAGE_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
@@ -100,7 +100,7 @@ impl ParseOperation {
             | Self::ThumbnailRaw
             | Self::ThumbnailPdf
             | Self::ThumbnailVideo => Some((256, 256, 256 * 256)),
-            Self::PreviewImage => Some((1_400, 1_400, 1_400 * 1_400)),
+            Self::PreviewImage => Some((800, 800, 800 * 800)),
             Self::PreviewPdf => Some((1_400, 1_800, 2_500_000)),
             Self::PreviewMedia => None,
         }
