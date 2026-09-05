@@ -64,8 +64,8 @@ Arch Linux and Omarchy are the primary supported environments. Current binaries 
 
 The interactive installer detects the Linux architecture, glibc version, Arch
 Linux, and Omarchy 3 or 4. It installs the latest verified stable release and
-offers optional desktop-menu, default-folder-handler, SMB, and Omarchy keybind
-integration:
+offers optional desktop-menu, default-folder-handler, SMB, broader image/RAW,
+and Omarchy keybind integration:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lgse/strata/main/install.sh | bash
@@ -75,6 +75,24 @@ The installer shows every privileged package operation before asking to run it.
 It verifies both the published SHA-256 digest and GitHub Actions provenance before
 installing anything from the release archive. The binary is installed per-user at
 `~/.local/bin/strata`.
+
+For an unattended Arch or Omarchy installation, pass `--non-interactive`. This
+installs required dependencies and the binary without prompting; optional
+integrations remain disabled unless explicitly selected:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lgse/strata/main/install.sh \
+  | bash -s -- --non-interactive \
+      --with-smb \
+      --with-raw \
+      --with-desktop-entry \
+      --with-folder-association \
+      --with-omarchy-keybinds
+```
+
+Each `--with-*` flag implies `--non-interactive`, and folder association implies
+the desktop entry. Non-interactive package installation requires passwordless
+sudo or cached credentials. Run `./install.sh --help` for the full option list.
 
 ### AI-assisted installation
 
