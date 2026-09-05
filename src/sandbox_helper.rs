@@ -24,8 +24,6 @@ const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(20);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum MediaBackend {
-    StreamCopyMp4,
-    StreamCopyMatroska,
     VaApi(PathBuf),
     Vulkan(usize),
     Software,
@@ -261,12 +259,7 @@ fn render_media_preview(path: &Path, policy: MediaPreviewBackend) -> Result<Vec<
     let hardware_started = Instant::now();
     run_media_backends(&backends, |backend| {
         let total_remaining = MEDIA_TOTAL_TIME_LIMIT.saturating_sub(started.elapsed());
-        let timeout = if matches!(
-            *backend,
-            MediaBackend::StreamCopyMp4 | MediaBackend::StreamCopyMatroska
-        ) {
-            Duration::from_secs(3).min(total_remaining)
-        } else if *backend == MediaBackend::Software {
+        let timeout = if *backend == MediaBackend::Software {
             total_remaining
         } else {
             let hardware_remaining =
@@ -304,10 +297,7 @@ fn media_backends(devices: &[PathBuf], policy: MediaPreviewBackend) -> Vec<Media
         })
         .count();
     let vulkan_devices = render_nodes.len().max(nvidia_devices);
-    let mut backends = vec![
-        MediaBackend::StreamCopyMp4,
-        MediaBackend::StreamCopyMatroska,
-    ];
+    let mut backends = Vec::new();
     if matches!(
         policy,
         MediaPreviewBackend::Automatic | MediaPreviewBackend::VaApi
@@ -341,7 +331,6 @@ fn media_command(backend: &MediaBackend, path: &Path) -> Command {
         .arg("-max_pixels")
         .arg(MAX_MEDIA_DECODE_PIXELS.to_string());
     match backend {
-        MediaBackend::StreamCopyMp4 | MediaBackend::StreamCopyMatroska => {}
         MediaBackend::VaApi(device) => {
             command
                 .env("MALLOC_ARENA_MAX", "1")
@@ -382,7 +371,6 @@ fn media_command(backend: &MediaBackend, path: &Path) -> Command {
         .arg(path)
         .args(["-map", "0:v:0", "-map", "0:a:0?", "-sn", "-dn", "-t", "30"]);
     match backend {
-        MediaBackend::StreamCopyMp4 | MediaBackend::StreamCopyMatroska => {}
         MediaBackend::VaApi(_) => {
             command.args([
                 "-vf",
@@ -406,7 +394,7 @@ fn media_command(backend: &MediaBackend, path: &Path) -> Command {
         MediaBackend::Software => {
             command.args([
                 "-vf",
-                "scale=w=960:h=960:force_original_aspect_ratio=decrease,format=yuv420p",
+                "scale=w=1280:h=1280:force_original_aspect_ratio=decrease,format=yuv420p",
                 "-c:v",
                 "libvpx",
                 "-auto-alt-ref",
@@ -423,29 +411,14 @@ fn media_command(backend: &MediaBackend, path: &Path) -> Command {
         }
     }
     match backend {
-        MediaBackend::StreamCopyMp4 => {
-            command.args([
-                "-c:v",
-                "copy",
-                "-c:a",
-                "copy",
-                "-movflags",
-                "+frag_keyframe+empty_moov",
-                "-f",
-                "mp4",
-            ]);
-        }
-        MediaBackend::StreamCopyMatroska => {
-            command.args(["-c:v", "copy", "-c:a", "copy", "-f", "matroska"]);
-        }
         MediaBackend::Software => {
             command.args(["-fpsmax", "30"]);
-            command.args(["-b:v", "2M", "-maxrate", "3M", "-bufsize", "4M"]);
+            command.args(["-b:v", "4M", "-maxrate", "6M", "-bufsize", "8M"]);
             command.args(["-c:a", "libopus", "-b:a", "96k", "-f", "webm"]);
         }
         MediaBackend::VaApi(_) | MediaBackend::Vulkan(_) => {
             command.args(["-fpsmax", "30"]);
-            command.args(["-b:v", "2M", "-maxrate", "3M", "-bufsize", "4M"]);
+            command.args(["-b:v", "4M", "-maxrate", "6M", "-bufsize", "8M"]);
             command.args([
                 "-c:a",
                 "aac",

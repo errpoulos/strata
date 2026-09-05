@@ -55,6 +55,7 @@ fn preview_cache_stores_and_retrieves_entries() {
     let key1 = PreviewCacheKey {
         path: PathBuf::from("/tmp/test1.png"),
         modified: Some(100),
+        pdf_page: None,
     };
     let content1 = PreviewContent::Rasterized {
         png: vec![1, 2, 3, 4],
@@ -66,6 +67,7 @@ fn preview_cache_stores_and_retrieves_entries() {
     let key2 = PreviewCacheKey {
         path: PathBuf::from("/tmp/test2.txt"),
         modified: Some(200),
+        pdf_page: None,
     };
     let content2 = PreviewContent::Text {
         content: "hello world".to_owned(),
@@ -74,6 +76,31 @@ fn preview_cache_stores_and_retrieves_entries() {
     cache.insert(key2.clone(), content2.clone());
     assert_eq!(cache.get(&key2), Some(content2));
     assert_eq!(cache.byte_count, 4 + 11);
+
+    let pdf_page_0 = PreviewCacheKey {
+        path: PathBuf::from("/tmp/doc.pdf"),
+        modified: Some(300),
+        pdf_page: Some(0),
+    };
+    let pdf_page_1 = PreviewCacheKey {
+        path: PathBuf::from("/tmp/doc.pdf"),
+        modified: Some(300),
+        pdf_page: Some(1),
+    };
+    let page0_content = PreviewContent::Pdf {
+        png: vec![10, 20],
+        page: 0,
+        pages: 2,
+    };
+    let page1_content = PreviewContent::Pdf {
+        png: vec![30, 40, 50],
+        page: 1,
+        pages: 2,
+    };
+    cache.insert(pdf_page_0.clone(), page0_content.clone());
+    cache.insert(pdf_page_1.clone(), page1_content.clone());
+    assert_eq!(cache.get(&pdf_page_0), Some(page0_content));
+    assert_eq!(cache.get(&pdf_page_1), Some(page1_content));
 }
 
 #[test]
@@ -81,6 +108,14 @@ fn preview_content_size_computes_accurately() {
     assert_eq!(
         preview_content_size(&PreviewContent::Rasterized { png: vec![0; 100] }),
         100
+    );
+    assert_eq!(
+        preview_content_size(&PreviewContent::Pdf {
+            png: vec![0; 80],
+            page: 0,
+            pages: 1
+        }),
+        80
     );
     assert_eq!(
         preview_content_size(&PreviewContent::SandboxedMedia { data: vec![0; 50] }),

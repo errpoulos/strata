@@ -35,8 +35,6 @@ fn media_backends_are_deterministic_and_ordered() {
     assert_eq!(
         media_backends(&devices, MediaPreviewBackend::Automatic),
         [
-            MediaBackend::StreamCopyMp4,
-            MediaBackend::StreamCopyMatroska,
             MediaBackend::VaApi("/dev/dri/renderD128".into()),
             MediaBackend::VaApi("/dev/dri/renderD129".into()),
             MediaBackend::Vulkan(0),
@@ -47,8 +45,6 @@ fn media_backends_are_deterministic_and_ordered() {
     assert_eq!(
         media_backends(&devices, MediaPreviewBackend::VaApi),
         [
-            MediaBackend::StreamCopyMp4,
-            MediaBackend::StreamCopyMatroska,
             MediaBackend::VaApi("/dev/dri/renderD128".into()),
             MediaBackend::VaApi("/dev/dri/renderD129".into()),
             MediaBackend::Software,
@@ -57,8 +53,6 @@ fn media_backends_are_deterministic_and_ordered() {
     assert_eq!(
         media_backends(&devices, MediaPreviewBackend::Vulkan),
         [
-            MediaBackend::StreamCopyMp4,
-            MediaBackend::StreamCopyMatroska,
             MediaBackend::Vulkan(0),
             MediaBackend::Vulkan(1),
             MediaBackend::Software,
@@ -66,23 +60,14 @@ fn media_backends_are_deterministic_and_ordered() {
     );
     assert_eq!(
         media_backends(&devices, MediaPreviewBackend::Software),
-        [
-            MediaBackend::StreamCopyMp4,
-            MediaBackend::StreamCopyMatroska,
-            MediaBackend::Software
-        ]
+        [MediaBackend::Software]
     );
     assert_eq!(
         media_backends(
             &["/dev/nvidia0".into(), "/dev/nvidiactl".into()],
             MediaPreviewBackend::Automatic,
         ),
-        [
-            MediaBackend::StreamCopyMp4,
-            MediaBackend::StreamCopyMatroska,
-            MediaBackend::Vulkan(0),
-            MediaBackend::Software
-        ]
+        [MediaBackend::Vulkan(0), MediaBackend::Software]
     );
 }
 
@@ -97,7 +82,6 @@ fn hardware_failures_fall_back_and_first_success_stops() {
     let result = run_media_backends(&backends, |backend| {
         attempts.push(backend.clone());
         match backend {
-            MediaBackend::StreamCopyMp4 | MediaBackend::StreamCopyMatroska => Err(()),
             MediaBackend::VaApi(_) => Err(()),
             MediaBackend::Vulkan(_) => Ok(None),
             MediaBackend::Software => Ok(Some("software")),
@@ -137,7 +121,7 @@ fn forced_backend_failure_goes_directly_to_software() {
         })
         .expect("software fallback should succeed");
         assert_eq!(attempts, backends);
-        assert_eq!(attempts.len(), 4);
+        assert_eq!(attempts.len(), 2);
     }
 }
 
@@ -253,24 +237,20 @@ fn media_commands_select_the_backend_and_preserve_limits() {
     assert!(vulkan.contains("-usage transcode -tune ull"));
     assert!(vulkan.contains("-c:a aac -b:a 96k -movflags +frag_keyframe+empty_moov -f mp4"));
 
-    let copy_mp4 = arguments(&MediaBackend::StreamCopyMp4);
-    assert!(copy_mp4.contains("-c:v copy -c:a copy -movflags +frag_keyframe+empty_moov -f mp4"));
-
-    let copy_mkv = arguments(&MediaBackend::StreamCopyMatroska);
-    assert!(copy_mkv.contains("-c:v copy -c:a copy -f matroska"));
-
     let software = arguments(&MediaBackend::Software);
     assert!(software.contains(
-        "-vf scale=w=960:h=960:force_original_aspect_ratio=decrease,format=yuv420p -c:v libvpx -auto-alt-ref 0 -lag-in-frames 0"
+        "-vf scale=w=1280:h=1280:force_original_aspect_ratio=decrease,format=yuv420p -c:v libvpx -auto-alt-ref 0 -lag-in-frames 0"
     ));
     assert!(software.contains("-threads 4 -deadline realtime -cpu-used 8"));
     assert!(software.contains("-c:a libopus -b:a 96k -f webm"));
 
-    for command in [copy_mp4, copy_mkv, vaapi, vulkan, software] {
+    for command in [vaapi, vulkan, software] {
         assert!(command.contains(
             "-probesize 500000 -analyzeduration 500000 -max_alloc 536870912 -max_pixels 50000000"
         ));
         assert!(command.contains("-map 0:v:0 -map 0:a:0? -sn -dn -t 30"));
+        assert!(command.contains("-fpsmax 30"));
+        assert!(command.contains("-b:v 4M -maxrate 6M -bufsize 8M"));
         assert!(command.ends_with("pipe:1"));
     }
 }
