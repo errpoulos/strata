@@ -7095,8 +7095,10 @@ pub(super) fn install_item_context_menu(
         let trash_visible = move_to_trash_is_visible(in_trash, state.browser.can_trash_at(depth));
         move_to_trash.set_visible(trash_visible);
         trash_multiple.set_visible(trash_visible);
-        permanent_delete.set_visible(!in_trash);
-        permanent_delete_multiple.set_visible(!in_trash);
+        let permanent_delete_visible =
+            permanently_delete_is_visible(in_trash, state.browser.can_delete_at(depth));
+        permanent_delete.set_visible(permanent_delete_visible);
+        permanent_delete_multiple.set_visible(permanent_delete_visible);
         pin.set_visible(entry.is_directory() && !is_trash_location(&entry.location));
         pin.set_sensitive(
             state
@@ -9552,6 +9554,12 @@ fn is_trash_location(location: &Location) -> bool {
 /// delete option this menu has.
 fn move_to_trash_is_visible(in_trash: bool, can_trash: Option<bool>) -> bool {
     in_trash || can_trash.unwrap_or(true)
+}
+
+/// Hidden in Trash, where the shared delete action is already permanent, or
+/// when GIO confirms deletion is unsupported.
+fn permanently_delete_is_visible(in_trash: bool, can_delete: Option<bool>) -> bool {
+    !in_trash && can_delete.unwrap_or(true)
 }
 
 fn compact_display_path(location: &Location) -> String {
