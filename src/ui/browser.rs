@@ -4818,6 +4818,7 @@ impl ViewState {
             let icon = gtk::Image::new();
             icon.add_css_class("file-icon");
             icon.set_pixel_size(17);
+            icon.set_valign(gtk::Align::Center);
             let label = gtk::Label::builder()
                 .halign(gtk::Align::Fill)
                 .xalign(0.0)
@@ -4850,6 +4851,7 @@ impl ViewState {
             size.set_xalign(1.0);
             let middle = gtk::Overlay::new();
             middle.set_hexpand(true);
+            middle.set_valign(gtk::Align::Center);
             let path = gtk::Label::builder()
                 .xalign(0.0)
                 .wrap(true)
@@ -4866,6 +4868,7 @@ impl ViewState {
             middle.add_overlay(&size);
             let chevron = crate::assets::primary_icon(crate::assets::icons::CHEVRON_RIGHT, 15);
             chevron.add_css_class("file-chevron");
+            chevron.set_valign(gtk::Align::Center);
             row.append(&icon);
             row.append(&middle);
             row.append(&chevron);
